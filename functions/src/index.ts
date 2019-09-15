@@ -6,6 +6,7 @@ const cors = corsModule({origin: true})
 admin.initializeApp()
 // const Mailchimp = require('mailchimp-api-v3');
 // const API_KEY: string = functions.config().mailchimp.key
+const adminPass = functions.config().cms.pass
 // const mailchimp = new Mailchimp(API_KEY)
 // // // Start writing Firebase Functions
 // // // https://firebase.google.com/docs/functions/typescript
@@ -73,7 +74,7 @@ export const newAdmin = functions.https.onRequest( async (request, response) => 
         const uid = request.body.uid
         const pass = request.body.pass
         console.log(`used pass: ${pass}`)
-        if (!pass || pass !== 'nwplus2020') {
+        if (!pass || pass !== adminPass) {
             response.sendStatus(500)
         }else {
             const db = admin.firestore()
