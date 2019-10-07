@@ -57,13 +57,16 @@ const updateAdminIDs = async () => {
     const db = admin.firestore()
     const admins = await db.collection('admins').get()
     const adminIDs = admins.docs.map((doc) => doc.id)
-    adminIDs.forEach(async (id) => {
-        await admin.auth().setCustomUserClaims(id, {admin: true})
-    })
+    console.log(adminIDs.length)
+    await Promise.all(adminIDs.map(async (id) => {
+            await admin.auth().setCustomUserClaims(id, {admin: true})
+            console.log(`admin set for: ${ (await admin.auth().getUser(id)).email}`)
+        }))
+
 }
 export const updateAdmins = functions.https.onRequest( async (request, response) => {
     await updateAdminIDs()
-    response.send(200)
+    response.sendStatus(200)
 })
 export const updateAdminsOnAdd = functions.firestore.document('admins/*').onCreate(async (change, context) => {
     await updateAdminIDs()
