@@ -68,7 +68,7 @@ export const getAdminTokens = functions.https.onRequest( async (request, respons
     }))
 })
 
-const updateAdminIDs = async () => {
+const updateAdminIDs = async (): Promise<Number> => {
     const db = admin.firestore()
     const admins = await db.collection('admins').get()
     const adminIDs = admins.docs.map((doc) => doc.id)
@@ -77,14 +77,19 @@ const updateAdminIDs = async () => {
             await admin.auth().setCustomUserClaims(id, {admin: true})
             console.log(`admin set for: ${ (await admin.auth().getUser(id)).email}`)
         }))
-
+    return(adminIDs.length)
 }
 export const updateAdmins = functions.https.onRequest( async (request, response) => {
-    await updateAdminIDs()
+    const amount = await updateAdminIDs()
+    console.log(`updated ${amount} admins`)
     response.sendStatus(200)
 })
 export const updateAdminsOnAdd = functions.firestore.document('admins/*').onCreate(async (change, context) => {
-    await updateAdminIDs()
+    const data = change.data()
+    console.log(`New admin added: ${data !== undefined ? data.email : ''}`)
+    const amount = await updateAdminIDs()
+    console.log(`updated ${amount} admins`)
+    return
 })
 
 export const newAdmin = functions.https.onRequest( async (request, response) => {
