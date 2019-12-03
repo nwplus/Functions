@@ -6,3 +6,5 @@ functions/firebase-debug.log
 functions/.runtimeconfig.json
 
 nwhacks-2019-ccbb6837420c.json
+
+*.DS_Store
