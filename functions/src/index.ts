@@ -1,16 +1,125 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin'
 import * as corsModule from "cors";
+import * as nodemailer from 'nodemailer'
+import Mail = require('nodemailer/lib/mailer');
 const cors = corsModule({origin: true})
-//import * as Parser from 'json2csv'
+import * as Parser from 'json2csv'
 admin.initializeApp()
 const Mailchimp = require('mailchimp-api-v3');
 const API_KEY: string = functions.config().mailchimp.key
 const adminPass = functions.config().cms.pass
+const applicantUpdateUrl = functions.config().slack.applicant
 const mailchimp = new Mailchimp(API_KEY)
 // // Start writing Firebase Functions
 // // https://firebase.google.com/docs/functions/typescript
 //
+const backFill = async () => {
+    const db = admin.firestore()
+    const hackers = await db.collection('hacker_info_2020').get()
+    await Promise.all(hackers.docs.map(doc => {
+        return doc.ref.update({
+            id: doc.data().email
+        })
+    }))
+}
+
+const numberTracker = async () => {
+    const db = admin.firestore()
+    const length = (await db.collection('hacker_email_2020').get()).size
+    const dataCollection = db.collection('application_data').doc('nwHacks')
+    let dataDoc = await dataCollection.get()
+    if (!(dataDoc.exists)){
+        console.log('creating data doc')
+        await dataCollection.create({
+            size: 0,
+            lastSize: 0
+        })
+    }
+    await dataCollection.update({
+        size: length
+    })
+    dataDoc = await dataCollection.get()
+    const data = dataDoc.data()
+    if (!data){ return }
+    console.log(`last milestone was: ${data.lastSize} current size is: ${length}`)
+    if (length % 50 === 0){
+        console.log('Logging new milestone...')
+        await dataCollection.update({
+            lastSize: length,
+            [`milestones.${length}`]: admin.firestore.FieldValue.serverTimestamp()
+        })  
+        console.log('Messaging slack!')
+        const { IncomingWebhook } = require('@slack/webhook');
+        const url = applicantUpdateUrl;
+        const webhook = new IncomingWebhook(url);
+        await webhook.send({
+            text: `🎉🎉 There are now ${length} applicants for nwHacks!!! 🎉🎉`,
+          });
+    }
+}
+const Email = async (email: String) => {
+    console.log(`Attempting to email ${email}`)
+    const transporter = nodemailer.createTransport({
+        host: 'smtp.zoho.com',
+        port: 465,
+        secure: true, // use SSL
+        auth: {
+            user: 'logistics@nwplus.io',
+            pass: adminPass
+        }
+    });
+    const mailOptions = {
+        from: 'logistics@nwplus.io',
+        to: email,
+        subject: 'Thank you for registering for nwHacks 2020!',
+        html: 
+        '<html><body><img src="cid:email_confirm" alt="nwHacks confirmation"/></body></html>',
+        attachments: [{
+            filename: 'Email_confirmation_banner.png',
+            path: './Email_confirmation_banner.png',
+            cid: 'email_confirm' //same cid value as in the html img src
+        }]
+    };
+    return new Promise((resolve, reject) => {
+        transporter.sendMail(mailOptions as Mail.Options, function(error, info){
+            if (error) {
+              console.log(error);
+              reject()
+            } else {
+              console.log(`Email sent to: ${email} with response ${info.response}`);
+              resolve()
+            }
+          });
+    })
+}
+
+export const emailConfirmation = functions.firestore.document('hacker_info_2020/{hackerID}').onWrite(async (change, context) => {
+    // delete mail doc if document is deleted.
+    const db = admin.firestore()
+    if (!change.after.exists && change.before.exists) {
+        const oldData = change.before.data()
+        if (oldData){
+            console.log(`Deleting applicant: ${oldData.email}`)
+            return db.collection('hacker_email_2020').doc(oldData.email).delete()
+        }
+    }
+    if (change.before.exists) {
+        console.log('Applicant already tracked/emailed.')
+        return
+    }
+    const data = change.after.data()
+    if ( data === undefined) return
+    await Email(data.email)
+    await numberTracker()
+    await change.after.ref.update({
+        id: data.email,
+        timestamp: admin.firestore.FieldValue.serverTimestamp()
+    })
+    console.log('Applicant setup!')
+    return true;
+})
+
 export const subscribeToMailingList = functions.https.onRequest(async (request, response) => {
     return cors(request, response, async () => {
         if (request.body.email_address === '') {
