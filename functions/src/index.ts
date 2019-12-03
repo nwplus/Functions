@@ -19,6 +19,7 @@ export const subscribeToMailingList = functions.https.onRequest(async (request, 
         }
         const mailigListId = '711520562b'
         console.log(`Using mailing list id: ${mailigListId}`)
+        console.log(`attempting to subscribe: ${request.body.email_address}`)
         try {
             const reply = await mailchimp.post(`lists/${mailigListId}/`, {
                 members: [
@@ -43,6 +44,7 @@ export const subscribeToMailingList = functions.https.onRequest(async (request, 
                     return
                 }
             }else {
+                console.log(`Successfully subscribed: ${request.body.email_address}`)
                 response.sendStatus(200)
                 return
             }
