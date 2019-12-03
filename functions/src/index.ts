@@ -112,13 +112,37 @@ export const newAdmin = functions.https.onRequest( async (request, response) => 
     })
 })
 
-// export const ApplicantToCSV = functions.https.onRequest( async (request, response) => {
-//     const db = admin.firestore()
-//     const hackerReference = db.collection('hacker_short_info')
-//     const snapshot = await hackerReference.get()
-//     const hackerInfo = snapshot.docs.map((doc) => doc.data())
-//     const parser = new Parser.Parser();
-//     const csv = parser.parse(hackerInfo);
-//     response.attachment('Hackers.csv')
-//     response.status(200).send(csv)
-// })
+export const backFillIds = functions.https.onRequest( async (request, response) => {
+    return cors(request, response, async () => {
+        await backFill()
+        response.send(200)
+    })
+})
+
+export const ApplicantToCSV = functions.https.onRequest( async (request, response) => {
+    return cors(request, response, async () => {
+        //Auth
+        const authHeader = request.get('Authorization')
+        if (authHeader === undefined) return
+        const idToken = authHeader.split('Bearer ')[1];
+        const uid = (await admin.auth().verifyIdToken(idToken)).uid
+        const db = admin.firestore()
+        const ref = db.collection('admins')
+        const admins = (await ref.get()).docs
+        if (!admins.reduce((acc, doc) => {
+            if (acc) return acc
+            if (doc.id === uid){
+                return true
+            }
+            return false
+        }, false)) return
+        //Export
+        const hackerReference = db.collection('hacker_info_2020')
+        const snapshot = await hackerReference.get()
+        const hackerInfo = snapshot.docs.map((doc) => doc.data())
+        const parser = new Parser.Parser();
+        const csv = parser.parse(hackerInfo);
+        response.attachment('Hackers.csv')
+        response.status(200).send(csv)
+    })
+})
