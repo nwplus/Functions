@@ -84,7 +84,7 @@ export const updateAdmins = functions.https.onRequest( async (request, response)
     console.log(`updated ${amount} admins`)
     response.sendStatus(200)
 })
-export const updateAdminsOnAdd = functions.firestore.document('admins/*').onCreate(async (change, context) => {
+export const updateAdminsOnAdd = functions.firestore.document('admins/{adminID}').onCreate(async (change, context) => {
     const data = change.data()
     console.log(`New admin added: ${data !== undefined ? data.email : ''}`)
     const amount = await updateAdminIDs()
