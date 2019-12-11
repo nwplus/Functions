@@ -94,6 +94,35 @@ const Email = async (email: String) => {
     })
 }
 
+const updateScored = async () => {
+    const db = admin.firestore()
+    const dataCollection = db.collection('application_data').doc('nwHacks')
+    const dataData = (await dataCollection.get()).data()
+    let lastScored = 0
+    if (dataData && !dataData.lastScored){
+        await dataCollection.update({
+            lastScored: 0
+        })
+    }else if(dataData) {
+        lastScored = dataData.lastScored
+    }
+    const size = (await db.collection('hacker_info_2020').where('score.finalScore', '>', -1).get()).size
+    if (size - lastScored > 50){
+        const totalSize = (await db.collection('hacker_info_2020').get()).size
+        await dataCollection.update({
+            lastScored: size
+        })
+        console.log('New scored milestone! Messaging slack!')
+        const { IncomingWebhook } = require('@slack/webhook');
+        const url = applicantUpdateUrl;
+        const webhook = new IncomingWebhook(url);
+        await webhook.send({
+            text: `🎉🎉 We have now scored ${size}/${totalSize} applicants for nwHacks!!! 🎉🎉`,
+          });
+    }
+}
+
+
 export const emailConfirmation = functions.firestore.document('hacker_info_2020/{hackerID}').onWrite(async (change, context) => {
     // delete mail doc if document is deleted.
     const db = admin.firestore()
@@ -106,6 +135,7 @@ export const emailConfirmation = functions.firestore.document('hacker_info_2020/
     }
     if (change.before.exists) {
         console.log('Applicant already tracked/emailed.')
+        await updateScored()
         return
     }
     const data = change.after.data()
