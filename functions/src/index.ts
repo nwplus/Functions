@@ -108,7 +108,10 @@ const updateScored = async () => {
         lastScored = dataData.lastScored
     }
     const size = (await db.collection('hacker_info_2020').where('score.finalScore', '>', -1).get()).size
-    if (size - lastScored > 50){
+    await dataCollection.update({
+        scored: size
+    })
+    if (size - lastScored >= 50){
         const totalSize = (await db.collection('hacker_info_2020').get()).size
         await dataCollection.update({
             lastScored: size
