@@ -152,10 +152,9 @@ export const emailConfirmation = functions.firestore.document('hacker_info_2020/
     if (change.before.exists) {
         await emailUpdate(change.before.data() as any, change.after.data() as any, change)
         await updateScored()
-        return
+        return true
     }
-    const data = change.after.data()
-    if ( data === undefined) return
+    const data = change.after.data() as any
     await Email(data.email)
     await numberTracker()
     await change.after.ref.update({
