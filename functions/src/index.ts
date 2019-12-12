@@ -1,11 +1,12 @@
-import * as functions from 'firebase-functions';
-import * as admin from 'firebase-admin'
 import * as corsModule from "cors";
 import * as nodemailer from 'nodemailer'
+import { tagApplicants } from './tagApplicants/index.js'
+import { admin, functions } from './util.js'
 import Mail = require('nodemailer/lib/mailer');
 const cors = corsModule({origin: true})
 import * as Parser from 'json2csv'
-admin.initializeApp()
+import { Change } from "firebase-functions";
+import { DocumentSnapshot } from "@google-cloud/firestore";
 const Mailchimp = require('mailchimp-api-v3');
 const API_KEY: string = functions.config().mailchimp.key
 const adminPass = functions.config().cms.pass
@@ -122,6 +123,18 @@ const updateScored = async () => {
     }
 }
 
+const emailUpdate = async (before: any, after: any, change: Change<DocumentSnapshot>) => {
+    const {email: beforeEmail} = before
+    const {email: afterEmail} = after
+    if (beforeEmail !== afterEmail){
+        await change.after.ref.parent.doc(afterEmail).set(after)
+        await change.after.ref.delete()
+        console.log(`Email ${beforeEmail} sucessfully moved to ${afterEmail}`)
+    }else {
+        console.log('Applicant already tracked/emailed.')
+    }
+}
+
 
 export const emailConfirmation = functions.firestore.document('hacker_info_2020/{hackerID}').onWrite(async (change, context) => {
     // delete mail doc if document is deleted.
@@ -129,12 +142,12 @@ export const emailConfirmation = functions.firestore.document('hacker_info_2020/
     if (!change.after.exists && change.before.exists) {
         const oldData = change.before.data()
         if (oldData){
-            console.log(`Deleting applicant: ${oldData.email}`)
+            console.log(`Deleting applicant: ${oldData.id}`)
             return db.collection('hacker_email_2020').doc(oldData.email).delete()
         }
     }
     if (change.before.exists) {
-        console.log('Applicant already tracked/emailed.')
+        await emailUpdate(change.before.data() as any, change.after.data() as any, change)
         await updateScored()
         return
     }
@@ -287,3 +300,5 @@ export const ApplicantToCSV = functions.https.onRequest( async (request, respons
         response.status(200).send(csv)
     })
 })
+
+export { tagApplicants }
