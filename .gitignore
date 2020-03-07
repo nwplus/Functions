@@ -1,10 +1,17 @@
 
 nwhacks-2019-dev-ceeb0f9d0b09.json
 
-functions/firebase-debug.log
-
-functions/.runtimeconfig.json
+firebase-debug.log
+.runtimeconfig.json
 
 nwhacks-2019-ccbb6837420c.json
 
 *.DS_Store
+node_modules
+
+## Compiled JavaScript files
+**/*.js
+**/*.js.map
+
+# Typescript v1 declaration files
+typings/
