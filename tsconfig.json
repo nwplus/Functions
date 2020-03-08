@@ -10,7 +10,5 @@
     "allowJs": true
   },
   "compileOnSave": true,
-  "include": [
-    "src"
-  ]
+  "include": ["src", "Legacy/tagApplicants.js", "Legacy/TagApplicants.ts"]
 }

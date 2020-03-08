@@ -7,8 +7,8 @@ const mailchimp = new Mailchimp(API_KEY);
 const MailingListId = "711520562b";
 
 /**
- * Description:
- *  Subscribes an email to the nwPlus mailing list.
+ *
+ * Subscribes an email to the nwPlus mailing list.
  * Method: POST
  * Body params:
  *  - email_address: String(email)

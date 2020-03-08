@@ -1,11 +1,10 @@
-import { admin, functions, cors, adminPass } from "./util.js";
+import { admin, functions, cors, adminPass, db } from "./util.js";
 
 /**
  * Adds a new user to the admin collection and gives them proper admin permissions.
  * @param uid
  */
 const addNewAdmin = async (uid: string) => {
-  const db = admin.firestore();
   const admins = db.collection("admins");
   await admins.doc(uid).set({
     name: (await admin.auth().getUser(uid)).displayName,

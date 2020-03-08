@@ -1,15 +1,11 @@
-import { admin, functions } from "./util.js";
+import { admin, functions, db, adminPass } from "./util.js";
 import { Change } from "firebase-functions";
 import { DocumentSnapshot } from "@google-cloud/firestore";
 
 import * as nodemailer from "nodemailer";
 import Mail = require("nodemailer/lib/mailer");
 
-const adminPass = functions.config().cms.pass;
 const applicantUpdateUrl = functions.config().slack.applicant;
-
-const db = admin.firestore();
-
 /**
  * Handles applicant deletion in the email collection
  * @param change
@@ -35,7 +31,7 @@ const handleApplicantDeletion = async (change: Change<DocumentSnapshot>) => {
  * @param change
  * @returns Promise<null>
  */
-const emailUpdate = async (
+const ChangeHackerEmail = async (
   before: any,
   after: any,
   change: Change<DocumentSnapshot>
@@ -56,7 +52,7 @@ const emailUpdate = async (
  * @param email
  */
 
-const Email = async (email: String) => {
+const SendConfirmationEmail = async (email: String) => {
   console.log(`Attempting to email ${email}`);
 
   // Create the mail transporter
@@ -104,7 +100,7 @@ const Email = async (email: String) => {
  * Handles Slack updates and applicant number tracking.
  */
 
-const numberTracker = async () => {
+const UpdateHackerStatistics = async () => {
   const length = (await db.collection("hacker_email_2020").get()).size;
   const dataCollection = db.collection("application_data").doc("nwHacks");
   let dataDoc = await dataCollection.get();
@@ -142,6 +138,15 @@ const numberTracker = async () => {
   }
 };
 
+/**
+ * This functions runs whenever a hacker document is added or changed in firestore.
+ * It handles:
+ *  - Deleting applicants from the email collection when required
+ *  - Changing an applicants email in the email collection
+ *  - Sending a confirmation email to new applicants
+ *  - Tracking applicant counts and sending slack notifs
+ */
+
 export default functions.firestore
   .document("hacker_info_2020/{hackerID}")
   .onWrite(async change => {
@@ -154,7 +159,7 @@ export default functions.firestore
     }
     // Handle applicant updates
     if (change.before.exists) {
-      await emailUpdate(
+      await ChangeHackerEmail(
         change.before.data() as any,
         change.after.data() as any,
         change
@@ -163,8 +168,8 @@ export default functions.firestore
       return true;
     }
     const data = change.after.data() as any;
-    await Email(data.email);
-    await numberTracker();
+    await SendConfirmationEmail(data.email);
+    await UpdateHackerStatistics();
     await change.after.ref.update({
       id: data.email,
       timestamp: admin.firestore.FieldValue.serverTimestamp()
