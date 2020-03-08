@@ -1,28 +1,16 @@
 import * as Parser from "json2csv";
-import { functions, admin, cors } from "./util";
-
-const db = admin.firestore();
+import { functions, VerifyAuth, cors, db } from "./util";
 
 /**
- * Checks the authentication of a header.
- * @param header
+ * Returns a csv with all hacker info
+ * Requires Authentication
  */
-const checkAuth = async (header: string) => {
-  const idToken = header.split("Bearer ")[1];
-  const uid = (await admin.auth().verifyIdToken(idToken)).uid;
-  const ref = db.collection("admins");
-  const admins = (await ref.get()).docs;
-  return admins.find(doc => {
-    return doc.id === uid;
-  });
-};
-
 export default functions.https.onRequest(async (request, response) =>
   cors(request, response, async () => {
     //Auth
     const authHeader = request.get("Authorization");
     if (authHeader === undefined) return;
-    if (!checkAuth(authHeader)) {
+    if (!VerifyAuth(authHeader)) {
       response.sendStatus(403);
       return;
     }
