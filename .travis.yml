@@ -3,7 +3,7 @@ node_js: node
 notifications:
   email: false
 install:
-  - cd functions; npm install
+  - npm install
 jobs:
   include:
     - stage: "Lint, Test and Build"
